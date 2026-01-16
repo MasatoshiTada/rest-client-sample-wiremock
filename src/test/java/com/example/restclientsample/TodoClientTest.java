@@ -24,10 +24,11 @@ public class TodoClientTest {
 
     // @WireMockTestだと一部のテストでエラーになるので、@RegisterExtensionを使う
     @RegisterExtension
-    static WireMockExtension wireMockServer = WireMockExtension.newInstance()
+    static WireMockExtension wireMock = WireMockExtension.newInstance()
             .options(wireMockConfig()
-                    .port(9999)
-            ).build();
+                    .http2PlainDisabled(true)
+                    .port(9999))
+            .build();
 
     @Nested
     @DisplayName("getByKeyword()")
@@ -36,24 +37,22 @@ public class TodoClientTest {
         @DisplayName("キーワードを指定すると、該当するTODOのリストを取得できる")
         void success() {
             // WireMockの設定
-            wireMockServer.stubFor(get("/api/todos?keyword=a")
+            wireMock.stubFor(get("/api/todos?keyword=a")
                     .willReturn(okJson("""
-                            [
-                              {
+                            [ {
                                 "id": 2,
                                 "description": "Example 2",
                                 "completed": false,
                                 "deadline": "2025-10-02T12:00:00",
                                 "createdAt": "2025-09-02T12:00:00"
-                              },
-                              {
+                            },
+                            {
                                 "id": 1,
                                 "description": "Example 1",
                                 "completed": true,
                                 "deadline": "2025-10-01T12:00:00",
                                 "createdAt": "2025-09-01T12:00:00"
-                              }
-                            ]
+                            } ]
                             """)));
             // テストの実行
             List<TodoResponse> actual = todoClient.getByKeyword("a");
@@ -82,7 +81,7 @@ public class TodoClientTest {
         @DisplayName("キーワードに該当するTODOがない場合、空のリストを取得できる")
         void empty() {
             // WireMockの設定
-            wireMockServer.stubFor(get("/api/todos?keyword=ZZZ")
+            wireMock.stubFor(get("/api/todos?keyword=ZZZ")
                     .willReturn(okJson("[]")));
             // テストの実行
             List<TodoResponse> actual = todoClient.getByKeyword("ZZZ");
@@ -98,14 +97,14 @@ public class TodoClientTest {
         @DisplayName("IDを指定すると、該当するTODOのOptionalを取得できる")
         void success() {
             // WireMockの設定
-            wireMockServer.stubFor(get("/api/todos/1")
+            wireMock.stubFor(get("/api/todos/1")
                     .willReturn(okJson("""
                             {
-                              "id": 1,
-                              "description": "Example 1",
-                              "completed": true,
-                              "deadline": "2025-10-01T12:00:00",
-                              "createdAt": "2025-09-01T12:00:00"
+                                "id": 1,
+                                "description": "Example 1",
+                                "completed": true,
+                                "deadline": "2025-10-01T12:00:00",
+                                "createdAt": "2025-09-01T12:00:00"
                             }
                             """)));
             // テストの実行
@@ -126,14 +125,14 @@ public class TodoClientTest {
         @DisplayName("該当するIDのTODOがない場合は、空のOptionalが返る")
         void empty() {
             // WireMockの設定
-            wireMockServer.stubFor(get("/api/todos/999")
+            wireMock.stubFor(get("/api/todos/999")
                     .willReturn(notFound().withBody("""
                             {
-                              "type": "about:blank",
-                              "status": 404,
-                              "title": "Not Found",
-                              "detail": "該当するTODOが見つかりません。",
-                              "instance": "/api/todos/999",
+                                "type": "about:blank",
+                                "status": 404,
+                                "title": "Not Found",
+                                "detail": "該当するTODOが見つかりません。",
+                                "instance": "/api/todos/999",
                             }
                             """)));
             // テストの実行
@@ -150,11 +149,11 @@ public class TodoClientTest {
         @DisplayName("TODOを登録すると、Locationレスポンスヘッダーを取得できる")
         void success() {
             // WireMockの設定
-            wireMockServer.stubFor(post("/api/todos")
+            wireMock.stubFor(post("/api/todos")
                     .withRequestBody(equalToJson("""
                             {
-                              "description": "New Todo",
-                              "deadline": "2025-10-01T12:00:00"
+                                "description": "New Todo",
+                                "deadline": "2025-10-01T12:00:00"
                             }
                             """))
                     .willReturn(created().withHeader("Location", "/api/todos/4")));
@@ -174,12 +173,12 @@ public class TodoClientTest {
         @DisplayName("TODOを更新すると、何も返らない")
         void success() {
             // WireMockの設定
-            wireMockServer.stubFor(put("/api/todos/1")
+            wireMock.stubFor(put("/api/todos/1")
                     .withRequestBody(equalToJson("""
                             {
-                              "description": "Updated Todo",
-                              "completed": true,
-                              "deadline": "2025-10-01T12:00:00"
+                                "description": "Updated Todo",
+                                "completed": true,
+                                "deadline": "2025-10-01T12:00:00"
                             }
                             """))
                     .willReturn(ok()));
@@ -195,21 +194,21 @@ public class TodoClientTest {
         @DisplayName("存在しないTODOを更新しようとすると、例外が発生する")
         void doesNotExist() {
             // WireMockの設定
-            wireMockServer.stubFor(put("/api/todos/999")
+            wireMock.stubFor(put("/api/todos/999")
                     .withRequestBody(equalToJson("""
                             {
-                              "description": "Updated Todo",
-                              "completed": true,
-                              "deadline": "2025-10-01T12:00:00"
+                                "description": "Updated Todo",
+                                "completed": true,
+                                "deadline": "2025-10-01T12:00:00"
                             }
                             """))
                     .willReturn(notFound().withBody("""
                             {
-                              "type": "about:blank",
-                              "status": 404,
-                              "title": "Not Found",
-                              "detail": "該当するTODOが見つかりません。",
-                              "instance": "/api/todos/999"
+                                "type": "about:blank",
+                                "status": 404,
+                                "title": "Not Found",
+                                "detail": "該当するTODOが見つかりません。",
+                                "instance": "/api/todos/999"
                             }
                             """)));
             // リクエストの作成
@@ -227,7 +226,7 @@ public class TodoClientTest {
         @DisplayName("TODOを削除すると、何も返らない")
         void success() {
             // WireMockの設定
-            wireMockServer.stubFor(delete("/api/todos/1")
+            wireMock.stubFor(delete("/api/todos/1")
                     .willReturn(noContent()));
             // テストの実行
             todoClient.delete(1);
@@ -238,18 +237,51 @@ public class TodoClientTest {
         @DisplayName("存在しないTODOを削除しようとすると、例外が発生する")
         void doesNotExist() {
             // WireMockの設定
-            wireMockServer.stubFor(delete("/api/todos/999")
+            wireMock.stubFor(delete("/api/todos/999")
                     .willReturn(notFound().withBody("""
                             {
-                              "type": "about:blank",
-                              "status": 404,
-                              "title": "Not Found",
-                              "detail": "該当するTODOが見つかりません。",
-                              "instance": "/api/todos/999"
+                                "type": "about:blank",
+                                "status": 404,
+                                "title": "Not Found",
+                                "detail": "該当するTODOが見つかりません。",
+                                "instance": "/api/todos/999"
                             }
                             """)));
             // テストの実行と例外の検証
             assertThrows(TodoNotFoundException.class, () -> todoClient.delete(999));
+        }
+    }
+
+    @Nested
+    @DisplayName("patch()")
+    class PatchTest {
+        @Test
+        @DisplayName("TODOを完了すると200")
+        void success() {
+            // WireMockの設定
+            wireMock.stubFor(patch("/api/todos/1/done")
+                    .willReturn(ok()));
+            // テストの実行
+            todoClient.patch(1);
+            // 結果の検証は特になし（例外が発生しなければ成功）
+        }
+
+        @Test
+        @DisplayName("存在しないTODOを完了しようとすると、例外が発生する")
+        void doesNotExist() {
+            // WireMockの設定
+            wireMock.stubFor(patch("/api/todos/999/done")
+                    .willReturn(notFound().withBody("""
+                            {
+                                "type": "about:blank",
+                                "status": 404,
+                                "title": "Not Found",
+                                "detail": "該当するTODOが見つかりません。",
+                                "instance": "/api/todos/999"
+                            }
+                            """)));
+            // テストの実行と例外の検証
+            assertThrows(TodoNotFoundException.class, () -> todoClient.patch(999));
         }
     }
 }
